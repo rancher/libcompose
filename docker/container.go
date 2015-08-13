@@ -204,7 +204,10 @@ func (c *Container) Up(imageName string) error {
 		if err != nil {
 			return err
 		}
-		err := c.client.StartContainer(container.Id, nil)
+
+		if err := c.client.StartContainer(container.Id, nil); err != nil {
+			return err
+		}
 
 		c.service.context.Project.Notify(project.CONTAINER_STARTED, c.service.Name(), map[string]string{
 			"name": c.Name(),

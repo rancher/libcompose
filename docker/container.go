@@ -264,7 +264,7 @@ func (c *Container) createContainer(imageName, oldContainer string) (*dockerclie
 		if err = c.pull(config.Image); err != nil {
 			return nil, err
 		}
-		if _, err = c.client.CreateContainer(config, c.name); err != nil {
+		if id, err = c.client.CreateContainer(config, c.name); err != nil {
 			return nil, err
 		}
 	}

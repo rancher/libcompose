@@ -199,9 +199,12 @@ func (c *Container) Up(imageName string) error {
 	}
 
 	if !info.State.Running {
-		logrus.Debugf("Starting container: %s", container.Id)
+		logrus.Debugf("Starting container: %s: %#v", container.Id, info.HostConfig)
+		err = c.populateAdditionalHostConfig(info.HostConfig)
+		if err != nil {
+			return err
+		}
 		err := c.client.StartContainer(container.Id, nil)
-		return err
 
 		c.service.context.Project.Notify(project.CONTAINER_STARTED, c.service.Name(), map[string]string{
 			"name": c.Name(),

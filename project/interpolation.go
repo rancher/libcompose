@@ -160,7 +160,12 @@ func Interpolate(environmentLookup EnvironmentLookup, config *RawServiceMap) err
 					return ""
 				}
 
-				return strings.Split(values[0], "=")[1]
+				// Use first result if many are given
+				value := values[0]
+
+				// Environment variables come in key=value format
+				// Return everything past first '='
+				return strings.SplitN(value, "=", 2)[1]
 			})
 
 			if err != nil {

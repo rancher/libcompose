@@ -230,21 +230,6 @@ func (c *Container) Delete() error {
 	return nil
 }
 
-// IsRunning returns the running state of the container.
-func (c *Container) IsRunning() (bool, error) {
-	container, err := c.findExisting()
-	if err != nil || container == nil {
-		return false, err
-	}
-
-	info, err := c.client.ContainerInspect(container.ID)
-	if err != nil {
-		return false, err
-	}
-
-	return info.State.Running, nil
-}
-
 // Up creates and start the container based on the image name and send an event
 // to notify the container has been created. If the container exists but is stopped
 // it tries to start it.

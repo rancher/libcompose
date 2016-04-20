@@ -255,29 +255,19 @@ func (c *Container) Delete() error {
 		return err
 	}
 
-	if !info.State.Running {
-		return c.client.ContainerRemove(context.Background(), container.ID, types.ContainerRemoveOptions{
-			Force:         true,
-			RemoveVolumes: c.service.context.Volume,
-		})
+	if info.State.Running {
+		err := c.client.ContainerStop(context.Background(), container.ID, int(c.service.context.Timeout))
+		if err != nil {
+			return err
+		}
 	}
 
-	return nil
-}
+	return c.client.ContainerRemove(context.Background(), container.ID, types.ContainerRemoveOptions{
+		Force:         true,
+		RemoveVolumes: c.service.context.Volume,
+	})
 
-// IsRunning returns the running state of the container.
-func (c *Container) IsRunning() (bool, error) {
-	container, err := c.findExisting()
-	if err != nil || container == nil {
-		return false, err
-	}
-
-	info, err := c.client.ContainerInspect(context.Background(), container.ID)
-	if err != nil {
-		return false, err
-	}
-
-	return info.State.Running, nil
+	//return c.client.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID, Force: true, RemoveVolumes: c.service.context.Volume})
 }
 
 // Run creates, start and attach to the container based on the image name,

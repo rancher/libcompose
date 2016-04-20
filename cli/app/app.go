@@ -196,26 +196,10 @@ func ProjectPull(p *project.Project, c *cli.Context) {
 
 // ProjectDelete deletes services.
 func ProjectDelete(p *project.Project, c *cli.Context) {
-	stoppedContainers, err := p.ListStoppedContainers(c.Args()...)
-	if err != nil {
-		logrus.Fatal(err)
+	if !c.Bool("force") && len(c.Args()) == 0 {
+		logrus.Fatal("Will not remove all services without --force")
 	}
-	if len(stoppedContainers) == 0 {
-		fmt.Println("No stopped containers")
-		return
-	}
-	if !c.Bool("force") {
-		fmt.Printf("Going to remove %v\nAre you sure? [yN]\n", strings.Join(stoppedContainers, ", "))
-		var answer string
-		_, err := fmt.Scanln(&answer)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		if answer != "y" && answer != "Y" {
-			return
-		}
-	}
-	err = p.Delete(c.Args()...)
+	err := p.Delete(c.Args()...)
 	if err != nil {
 		logrus.Fatal(err)
 	}

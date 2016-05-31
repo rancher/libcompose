@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -26,7 +25,7 @@ type DaemonClient struct {
 	message    jsonmessage.JSONMessage
 }
 
-func (c *DaemonClient) ImageBuild(ctx context.Context, context io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
+func (c *DaemonClient) ImageBuild(ctx context.Context, options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
 	if c.imageName != "" {
 		if len(options.Tags) != 1 || options.Tags[0] != c.imageName {
 			return types.ImageBuildResponse{}, fmt.Errorf("expected image %q, got %v", c.imageName, options.Tags)
@@ -37,7 +36,7 @@ func (c *DaemonClient) ImageBuild(ctx context.Context, context io.Reader, option
 		if err != nil {
 			return types.ImageBuildResponse{}, err
 		}
-		if err := archive.Untar(context, tmp, nil); err != nil {
+		if err := archive.Untar(options.Context, tmp, nil); err != nil {
 			return types.ImageBuildResponse{}, err
 		}
 		changes, err := archive.ChangesDirs(tmp, c.contextDir)
@@ -55,7 +54,7 @@ func (c *DaemonClient) ImageBuild(ctx context.Context, context io.Reader, option
 			Body: ioutil.NopCloser(bytes.NewReader(b)),
 		}, nil
 	}
-	return c.NopClient.ImageBuild(ctx, context, options)
+	return c.NopClient.ImageBuild(ctx, options)
 }
 
 func TestBuildInvalidContextDirectoryOrDockerfile(t *testing.T) {

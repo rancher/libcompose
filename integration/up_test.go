@@ -191,8 +191,11 @@ func (s *CliSuite) TestUpAfterImageTagDeleted(c *C) {
 	  tty: true
 	`, image)
 
-	err := client.ImageTag(context.Background(), "busybox:latest", repo+":"+label, types.ImageTagOptions{
-		Force: true,
+	err := client.ImageTag(context.Background(), types.ImageTagOptions{
+		ImageID:        "busybox:latest",
+		RepositoryName: repo,
+		Tag:            label,
+		Force:          true,
 	})
 	c.Assert(err, IsNil)
 
@@ -200,7 +203,9 @@ func (s *CliSuite) TestUpAfterImageTagDeleted(c *C) {
 	name := fmt.Sprintf("%s_%s_1", p, "hello")
 	firstContainer := s.GetContainerByName(c, name)
 
-	_, err = client.ImageRemove(context.Background(), image, types.ImageRemoveOptions{})
+	_, err = client.ImageRemove(context.Background(), types.ImageRemoveOptions{
+		ImageID: image,
+	})
 	c.Assert(err, IsNil)
 
 	p = s.FromText(c, p, "up", "--no-recreate", template)
@@ -224,7 +229,9 @@ func (s *CliSuite) TestRecreateImageChanging(c *C) {
 	`, image)
 
 	// Ignore error here
-	client.ImageRemove(context.Background(), image, types.ImageRemoveOptions{})
+	client.ImageRemove(context.Background(), types.ImageRemoveOptions{
+		ImageID: image,
+	})
 
 	// Up, pull needed
 	p := s.ProjectFromText(c, "up", template)
@@ -242,8 +249,11 @@ func (s *CliSuite) TestRecreateImageChanging(c *C) {
 	c.Assert(firstContainer.ID, Equals, latestContainer.ID)
 
 	// Change what tag points to
-	err := client.ImageTag(context.Background(), "busybox:latest", repo+":"+label, types.ImageTagOptions{
-		Force: true,
+	err := client.ImageTag(context.Background(), types.ImageTagOptions{
+		ImageID:        "busybox:latest",
+		RepositoryName: repo,
+		Tag:            label,
+		Force:          true,
 	})
 	c.Assert(err, IsNil)
 

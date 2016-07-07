@@ -230,25 +230,10 @@ func ProjectPull(p project.APIProject, c *cli.Context) error {
 
 // ProjectDelete deletes services.
 func ProjectDelete(p project.APIProject, c *cli.Context) error {
-	options := options.Delete{
-		RemoveVolume: c.Bool("v"),
+	if !c.Bool("force") && len(c.Args()) == 0 {
+		logrus.Fatal("Will not remove all services without --force")
 	}
-	if !c.Bool("force") {
-		options.BeforeDeleteCallback = func(stoppedContainers []string) bool {
-			fmt.Printf("Going to remove %v\nAre you sure? [yN]\n", strings.Join(stoppedContainers, ", "))
-			var answer string
-			_, err := fmt.Scanln(&answer)
-			if err != nil {
-				logrus.Error(err)
-				return false
-			}
-			if answer != "y" && answer != "Y" {
-				return false
-			}
-			return true
-		}
-	}
-	err := p.Delete(context.Background(), options, c.Args()...)
+	err := p.Delete(context.Background(), options.Delete{}, c.Args()...)
 	if err != nil {
 		return cli.NewExitError(err.Error(), 1)
 	}

@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/docker/libcompose/cli/command"
 	"github.com/docker/libcompose/docker"
 	"github.com/docker/libcompose/docker/client"
 )
@@ -41,6 +42,8 @@ func DockerClientFlags() []cli.Flag {
 
 // Populate updates the specified docker context based on command line arguments and subcommands.
 func Populate(context *docker.Context, c *cli.Context) {
+	command.Populate(&context.Context, c)
+
 	context.ConfigDir = c.String("configdir")
 
 	opts := client.Options{}

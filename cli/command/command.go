@@ -3,9 +3,9 @@ package command
 import (
 	"os"
 
-	"github.com/codegangsta/cli"
 	"github.com/docker/libcompose/cli/app"
 	"github.com/docker/libcompose/project"
+	"github.com/urfave/cli"
 )
 
 // Populate updates the specified project context based on command line arguments and subcommands.

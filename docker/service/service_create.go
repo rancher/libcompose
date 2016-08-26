@@ -25,7 +25,7 @@ func (s *Service) createContainer(ctx context.Context, namer Namer, oldContainer
 		serviceConfig.Tty = configOverride.Tty
 		serviceConfig.StdinOpen = configOverride.StdinOpen
 	}
-	configWrapper, err := ConvertToAPI(serviceConfig, s.context.Context, s.clientFactory)
+	configWrapper, err := ConvertToAPI(serviceConfig, s.context.Context)
 	if err != nil {
 		return nil, err
 	}

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
@@ -13,8 +11,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/docker/libcompose/config"
-	composeclient "github.com/docker/libcompose/docker/client"
-	composecontainer "github.com/docker/libcompose/docker/container"
 	"github.com/docker/libcompose/project"
 	"github.com/docker/libcompose/utils"
 	// "github.com/docker/libcompose/yaml"
@@ -57,8 +53,8 @@ func isVolume(s string) bool {
 }
 
 // ConvertToAPI converts a service configuration to a docker API container configuration.
-func ConvertToAPI(serviceConfig *config.ServiceConfig, ctx project.Context, clientFactory composeclient.Factory) (*ConfigWrapper, error) {
-	config, hostConfig, err := Convert(serviceConfig, ctx, clientFactory)
+func ConvertToAPI(serviceConfig *config.ServiceConfig, ctx project.Context) (*ConfigWrapper, error) {
+	config, hostConfig, err := Convert(serviceConfig, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +122,7 @@ func ports(c *config.ServiceConfig) (map[nat.Port]struct{}, nat.PortMap, error) 
 }
 
 // Convert converts a service configuration to an docker API structures (Config and HostConfig)
-func Convert(c *config.ServiceConfig, ctx project.Context, clientFactory composeclient.Factory) (*container.Config, *container.HostConfig, error) {
+func Convert(c *config.ServiceConfig, ctx project.Context) (*container.Config, *container.HostConfig, error) {
 	restartPolicy, err := restartPolicy(c)
 	if err != nil {
 		return nil, nil, err
@@ -195,48 +191,6 @@ func Convert(c *config.ServiceConfig, ctx project.Context, clientFactory compose
 		Devices:          deviceMappings,
 	}
 
-	networkMode := c.NetworkMode
-	if c.NetworkMode == "" {
-		if c.Networks != nil && len(c.Networks.Networks) > 0 {
-			networkMode = c.Networks.Networks[0].RealName
-		}
-	} else {
-		switch {
-		case strings.HasPrefix(c.NetworkMode, "service:"):
-			serviceName := c.NetworkMode[8:]
-			if serviceConfig, ok := ctx.Project.ServiceConfigs.Get(serviceName); ok {
-				// FIXME(vdemeester) this is actually not right, should be fixed but not there
-				service, err := ctx.ServiceFactory.Create(ctx.Project, serviceName, serviceConfig)
-				if err != nil {
-					return nil, nil, err
-				}
-				containers, err := service.Containers(context.Background())
-				if err != nil {
-					return nil, nil, err
-				}
-				if len(containers) != 0 {
-					container := containers[0]
-					containerID, err := container.ID()
-					if err != nil {
-						return nil, nil, err
-					}
-					networkMode = "container:" + containerID
-				}
-				// FIXME(vdemeester) log/warn in case of len(containers) == 0
-			}
-		case strings.HasPrefix(c.NetworkMode, "container:"):
-			containerName := c.NetworkMode[10:]
-			client := clientFactory.Create(nil)
-			container, err := composecontainer.Get(context.Background(), client, containerName)
-			if err != nil {
-				return nil, nil, err
-			}
-			networkMode = "container:" + container.ID
-		default:
-			// do nothing :)
-		}
-	}
-
 	tmpfs := map[string]string{}
 	for _, path := range c.Tmpfs {
 		tmpfs[path] = ""
@@ -256,7 +210,7 @@ func Convert(c *config.ServiceConfig, ctx project.Context, clientFactory compose
 			Type:   c.Logging.Driver,
 			Config: utils.CopyMap(c.Logging.Options),
 		},
-		NetworkMode:    container.NetworkMode(networkMode),
+		NetworkMode:    container.NetworkMode(c.NetworkMode),
 		ReadonlyRootfs: c.ReadOnly,
 		OomScoreAdj:    int(c.OomScoreAdj),
 		PidMode:        container.PidMode(c.Pid),

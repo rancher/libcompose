@@ -115,8 +115,7 @@ func (c *Context) lookupProjectName() (string, error) {
 }
 
 func normalizeName(name string) string {
-	r := regexp.MustCompile("[^a-z0-9]+")
-	return r.ReplaceAllString(strings.ToLower(name), "")
+	return name
 }
 
 func toUnixPath(p string) string {

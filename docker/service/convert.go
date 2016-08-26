@@ -2,11 +2,13 @@ package service
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types/blkiodev"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/strslice"
@@ -17,7 +19,6 @@ import (
 	composecontainer "github.com/docker/libcompose/docker/container"
 	"github.com/docker/libcompose/project"
 	"github.com/docker/libcompose/utils"
-	// "github.com/docker/libcompose/yaml"
 )
 
 // ConfigWrapper wraps Config, HostConfig and NetworkingConfig for a container.
@@ -180,15 +181,45 @@ func Convert(c *config.ServiceConfig, ctx project.Context, clientFactory compose
 		}
 	}
 
+	var blkioDeviceReadIOps []*blkiodev.ThrottleDevice
+	for _, deviceReadIOps := range c.DeviceReadIOps {
+		split := strings.Split(deviceReadIOps, ":")
+		rate, err := strconv.ParseUint(split[1], 10, 64)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		blkioDeviceReadIOps = append(blkioDeviceReadIOps, &blkiodev.ThrottleDevice{
+			Path: split[0],
+			Rate: rate,
+		})
+	}
+
+	var blkioDeviceWriteIOps []*blkiodev.ThrottleDevice
+	for _, deviceWriteIOps := range c.DeviceWriteIOps {
+		split := strings.Split(deviceWriteIOps, ":")
+		rate, err := strconv.ParseUint(split[1], 10, 64)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		blkioDeviceWriteIOps = append(blkioDeviceWriteIOps, &blkiodev.ThrottleDevice{
+			Path: split[0],
+			Rate: rate,
+		})
+	}
+
 	resources := container.Resources{
-		CgroupParent: c.CgroupParent,
-		Memory:       int64(c.MemLimit),
-		MemorySwap:   int64(c.MemSwapLimit),
-		CPUShares:    int64(c.CPUShares),
-		CPUQuota:     int64(c.CPUQuota),
-		CpusetCpus:   c.CPUSet,
-		Ulimits:      ulimits,
-		Devices:      deviceMappings,
+		CgroupParent:         c.CgroupParent,
+		Memory:               int64(c.MemLimit),
+		MemorySwap:           int64(c.MemSwapLimit),
+		CPUShares:            int64(c.CPUShares),
+		CPUQuota:             int64(c.CPUQuota),
+		CpusetCpus:           c.CPUSet,
+		Ulimits:              ulimits,
+		Devices:              deviceMappings,
+		BlkioDeviceReadIOps:  blkioDeviceReadIOps,
+		BlkioDeviceWriteIOps: blkioDeviceWriteIOps,
 	}
 
 	networkMode := c.NetworkMode

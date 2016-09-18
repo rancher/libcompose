@@ -232,7 +232,7 @@ func (p *Project) load(file string, bytes []byte) error {
 
 	// Update network configuration a little bit
 	p.handleNetworkConfig()
-	p.handleVolumeConfig()
+	//p.handleVolumeConfig()
 
 	if p.context.NetworksFactory != nil {
 		networks, err := p.context.NetworksFactory.Create(p.Name, p.NetworkConfigs, p.ServiceConfigs, p.isNetworkEnabled())

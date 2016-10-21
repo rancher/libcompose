@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/docker/docker/api/types/blkiodev"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/libcompose/config"
 	"github.com/docker/libcompose/docker/ctx"
 	"github.com/docker/libcompose/lookup"
@@ -51,7 +53,7 @@ func TestParseBindsAndVolumes(t *testing.T) {
 				},
 			},
 		},
-	}, ctx.Context, nil)
+	}, ctx.Context)
 	assert.Nil(t, err)
 	assert.Equal(t, map[string]struct{}{"/foo": {}, "/bar/baz": {}}, cfg.Volumes)
 	assert.Equal(t, []string{"/home:/home", abs + "/foo:/home", "/usr/lib:/usr/lib:ro"}, hostCfg.Binds)
@@ -68,7 +70,7 @@ func TestParseLabels(t *testing.T) {
 		Entrypoint: yaml.Command([]string{bashCmd}),
 		Labels:     yaml.SliceorMap{fooLabel: "service.config.value"},
 	}
-	cfg, _, err := Convert(sc, ctx.Context, nil)
+	cfg, _, err := Convert(sc, ctx.Context)
 	assert.Nil(t, err)
 
 	cfg.Labels[fooLabel] = "FUN"
@@ -89,7 +91,7 @@ func TestGroupAdd(t *testing.T) {
 			"1",
 		},
 	}
-	_, hostCfg, err := Convert(sc, ctx.Context, nil)
+	_, hostCfg, err := Convert(sc, ctx.Context)
 	assert.Nil(t, err)
 
 	assert.True(t, reflect.DeepEqual([]string{
@@ -98,15 +100,83 @@ func TestGroupAdd(t *testing.T) {
 	}, hostCfg.GroupAdd))
 }
 
+func TestBlkioWeight(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		BlkioWeight: 10,
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.Equal(t, uint16(10), hostCfg.BlkioWeight)
+}
+
+func TestBlkioWeightDevices(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		BlkioWeightDevice: []string{
+			"/dev/sda:10",
+		},
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.True(t, reflect.DeepEqual([]*blkiodev.WeightDevice{
+		&blkiodev.WeightDevice{
+			Path:   "/dev/sda",
+			Weight: 10,
+		},
+	}, hostCfg.BlkioWeightDevice))
+}
+
+func TestCPUPeriod(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		CPUPeriod: 50000,
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.Equal(t, int64(50000), hostCfg.CPUPeriod)
+}
+
+func TestDNSOpt(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		DNSOpt: []string{
+			"use-vc",
+			"no-tld-query",
+		},
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.True(t, reflect.DeepEqual([]string{
+		"use-vc",
+		"no-tld-query",
+	}, hostCfg.DNSOptions))
+}
+
 func TestMemSwappiness(t *testing.T) {
 	ctx := &ctx.Context{}
 	sc := &config.ServiceConfig{
 		MemSwappiness: yaml.StringorInt(10),
 	}
-	_, hostCfg, err := Convert(sc, ctx.Context, nil)
+	_, hostCfg, err := Convert(sc, ctx.Context)
 	assert.Nil(t, err)
 
 	assert.Equal(t, int64(10), *hostCfg.MemorySwappiness)
+}
+
+func TestMemReservation(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		MemReservation: 100000,
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.Equal(t, int64(100000), hostCfg.MemoryReservation)
 }
 
 func TestOomScoreAdj(t *testing.T) {
@@ -114,10 +184,21 @@ func TestOomScoreAdj(t *testing.T) {
 	sc := &config.ServiceConfig{
 		OomScoreAdj: 500,
 	}
-	_, hostCfg, err := Convert(sc, ctx.Context, nil)
+	_, hostCfg, err := Convert(sc, ctx.Context)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 500, hostCfg.OomScoreAdj)
+}
+
+func TestIsolation(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		Isolation: "default",
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.Equal(t, container.Isolation("default"), hostCfg.Isolation)
 }
 
 func TestStopSignal(t *testing.T) {
@@ -125,7 +206,7 @@ func TestStopSignal(t *testing.T) {
 	sc := &config.ServiceConfig{
 		StopSignal: "SIGTERM",
 	}
-	cfg, _, err := Convert(sc, ctx.Context, nil)
+	cfg, _, err := Convert(sc, ctx.Context)
 	assert.Nil(t, err)
 
 	assert.Equal(t, "SIGTERM", cfg.StopSignal)
@@ -136,7 +217,7 @@ func TestTmpfs(t *testing.T) {
 	sc := &config.ServiceConfig{
 		Tmpfs: yaml.Stringorslice{"/run"},
 	}
-	_, hostCfg, err := Convert(sc, ctx.Context, nil)
+	_, hostCfg, err := Convert(sc, ctx.Context)
 	assert.Nil(t, err)
 
 	assert.True(t, reflect.DeepEqual(map[string]string{
@@ -146,10 +227,93 @@ func TestTmpfs(t *testing.T) {
 	sc = &config.ServiceConfig{
 		Tmpfs: yaml.Stringorslice{"/run:rw,noexec,nosuid,size=65536k"},
 	}
-	_, hostCfg, err = Convert(sc, ctx.Context, nil)
+	_, hostCfg, err = Convert(sc, ctx.Context)
 	assert.Nil(t, err)
 
 	assert.True(t, reflect.DeepEqual(map[string]string{
 		"/run": "rw,noexec,nosuid,size=65536k",
 	}, hostCfg.Tmpfs))
+}
+
+func TestOomKillDisable(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		OomKillDisable: true,
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.Equal(t, true, *hostCfg.OomKillDisable)
+}
+
+func TestBlkioDeviceReadBps(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		DeviceReadBps: yaml.MaporColonSlice([]string{
+			"/dev/sda:100000",
+		}),
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.True(t, reflect.DeepEqual([]*blkiodev.ThrottleDevice{
+		&blkiodev.ThrottleDevice{
+			Path: "/dev/sda",
+			Rate: 100000,
+		},
+	}, hostCfg.BlkioDeviceReadBps))
+}
+
+func TestBlkioDeviceReadIOps(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		DeviceReadIOps: yaml.MaporColonSlice([]string{
+			"/dev/sda:100000",
+		}),
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.True(t, reflect.DeepEqual([]*blkiodev.ThrottleDevice{
+		&blkiodev.ThrottleDevice{
+			Path: "/dev/sda",
+			Rate: 100000,
+		},
+	}, hostCfg.BlkioDeviceReadIOps))
+}
+
+func TestBlkioDeviceWriteBps(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		DeviceWriteBps: yaml.MaporColonSlice([]string{
+			"/dev/sda:100000",
+		}),
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.True(t, reflect.DeepEqual([]*blkiodev.ThrottleDevice{
+		&blkiodev.ThrottleDevice{
+			Path: "/dev/sda",
+			Rate: 100000,
+		},
+	}, hostCfg.BlkioDeviceWriteBps))
+}
+
+func TestBlkioDeviceWriteIOps(t *testing.T) {
+	ctx := &ctx.Context{}
+	sc := &config.ServiceConfig{
+		DeviceWriteIOps: yaml.MaporColonSlice([]string{
+			"/dev/sda:100000",
+		}),
+	}
+	_, hostCfg, err := Convert(sc, ctx.Context)
+	assert.Nil(t, err)
+
+	assert.True(t, reflect.DeepEqual([]*blkiodev.ThrottleDevice{
+		&blkiodev.ThrottleDevice{
+			Path: "/dev/sda",
+			Rate: 100000,
+		},
+	}, hostCfg.BlkioDeviceWriteIOps))
 }
